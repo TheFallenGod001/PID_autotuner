@@ -11,21 +11,21 @@ import matplotlib.animation as animation
 # =========================================================
 PORT = "COM18"
 BAUD = 115200
-CURR_MOTOR = 2
+CURR_MOTOR = 3
 
 MAX_POINTS = 300
-MAX_PID_VALUES = 50
-TIME_PERIOD = 8
+MAX_PID_VALUES = 10
+TIME_PERIOD = 5
 TIME_OUT = 5
 iterations = 15
 
 startingPoint = 0
-endingPoint = 20
+endingPoint = 30
 delta = 1
 min_error_params = [float('inf'), 0, 0, 0]
 
-learning_rate = 0.001
-ACCEPTABLE_ERROR = 0.0
+learning_rate = 0.005
+ACCEPTABLE_ERROR = 2.1
 
 # -------- COST EVALUATION MODE --------
 # "TIME"  -> fixed time window (includes transients)
@@ -38,12 +38,12 @@ TUNE_P = True
 TUNE_I = True
 TUNE_D = True
 # -------- INITIAL GAINS (must be > 0) --------
-kp, ki, kd = 0.00489300219772169, 0.02823752341330259, 0.00013409059780944936
+kp, ki, kd = 0.01, 0.03, 0.001
 
 # =========================================================
 # ====================== SPSA ==============================
 # =========================================================
-alpha = 0.602
+alpha = 0.502
 sA = 0.1 * iterations
 
 param_names = []
@@ -94,21 +94,21 @@ def safe_float(s, default=0.0):
 # =========================================================
 # ================== HELPER FUNCTIONS =====================
 # =========================================================
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
+def sigmoid(x, a = 2.1, b = 0.08):
+    return 1 / (1 + np.exp(a-b*x))
 
 def unpack_phi(phi_vec):
     global kp, ki, kd
     idx = 0
     if TUNE_P:
-        kp = MAX_PID_VALUES*sigmoid(phi_vec[idx]); idx += 1
+        kp = np.exp(phi_vec[idx]); idx += 1
     if TUNE_I:
-        ki = MAX_PID_VALUES*sigmoid(phi_vec[idx]); idx += 1
+        ki = np.exp(phi_vec[idx]); idx += 1
     if TUNE_D:
-        kd = MAX_PID_VALUES*sigmoid(phi_vec[idx])
-    if (kp > 20): kp = 20
-    if (ki > 20): ki = 20
-    if (kd > 20): kd = 20
+        kd = np.exp(phi_vec[idx])
+    if kp > MAX_PID_VALUES : kp = MAX_PID_VALUES
+    if kd > MAX_PID_VALUES : kd = MAX_PID_VALUES
+    if ki > MAX_PID_VALUES : ki = MAX_PID_VALUES
 
 
 
@@ -213,7 +213,7 @@ def tuner():
         a_k = learning_rate / ((curr_iteration + 1 + sA) ** alpha)
 
         cycle_error = 0.5 * (Jp + Jm)
-        weight = cycle_error / (cycle_error + ACCEPTABLE_ERROR)
+        weight = sigmoid(cycle_error)
         a_eff = a_k * weight
 
         phi -= a_eff * g_hat
@@ -237,7 +237,7 @@ def tuner():
 
         cycle += 1
         curr_iteration += 1
-        time.sleep(0.3)
+        time.sleep(3.0)
 
     print("Tuning finished.")
     print(f"Minimum params obtained from tune: minimum error - {min_error_params[0]}\nkp - {min_error_params[1]}\nki - {min_error_params[2]}\nkd - {min_error_params[3]}")
