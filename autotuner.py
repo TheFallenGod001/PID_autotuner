@@ -14,6 +14,7 @@ BAUD = 115200
 CURR_MOTOR = 2
 
 MAX_POINTS = 300
+MAX_PID_VALUES = 50
 TIME_PERIOD = 8
 TIME_OUT = 5
 iterations = 15
@@ -37,7 +38,7 @@ TUNE_P = True
 TUNE_I = True
 TUNE_D = True
 # -------- INITIAL GAINS (must be > 0) --------
-kp, ki, kd = 0.0039, 0.0192, 0.0001
+kp, ki, kd = 0.00489300219772169, 0.02823752341330259, 0.00013409059780944936
 
 # =========================================================
 # ====================== SPSA ==============================
@@ -93,15 +94,18 @@ def safe_float(s, default=0.0):
 # =========================================================
 # ================== HELPER FUNCTIONS =====================
 # =========================================================
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
 def unpack_phi(phi_vec):
     global kp, ki, kd
     idx = 0
     if TUNE_P:
-        kp = np.exp(phi_vec[idx]); idx += 1
+        kp = MAX_PID_VALUES*sigmoid(phi_vec[idx]); idx += 1
     if TUNE_I:
-        ki = np.exp(phi_vec[idx]); idx += 1
+        ki = MAX_PID_VALUES*sigmoid(phi_vec[idx]); idx += 1
     if TUNE_D:
-        kd = np.exp(phi_vec[idx])
+        kd = MAX_PID_VALUES*sigmoid(phi_vec[idx])
     if (kp > 20): kp = 20
     if (ki > 20): ki = 20
     if (kd > 20): kd = 20
