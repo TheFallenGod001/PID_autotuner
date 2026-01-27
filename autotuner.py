@@ -61,7 +61,7 @@ if TUNE_I: phi.append(np.log(ki))
 if TUNE_D: phi.append(np.log(kd))
 phi = np.array(phi, dtype=float)
 
-sC = np.random.rand(param_count) * 0.01
+sC = np.ones(param_count) * 0.02
 sDelta = np.zeros(param_count)
 
 # =========================================================
@@ -161,62 +161,58 @@ threading.Thread(target=read_serial, daemon=True).start()
 # ==================== TUNER ==============================
 # =========================================================
 def tuner():
-    global curr_iteration, cycle, phi, err_acc, counter, wait, sC
+    global curr_iteration, cycle, phi, err_acc, counter, wait, sC, learning_rate
+
+    MAX_STEP = 0.05         
+    GRAD_EPS = 1e-2          
+    PATIENCE = 5             
+    IMPROVEMENT_EPS = 0.02   
+
+    prev_errors = []
 
     unpack_phi(phi)
     send_command(startingPoint, kp, ki, kd)
     time.sleep(5.0)
 
     while curr_iteration < iterations:
+        # Random SPSA direction
         sDelta[:] = 2 * np.random.randint(0, 2, size=param_count) - 1
-
-        # ====================== J+ ======================
         phi_p = phi + sC * sDelta
         unpack_phi(phi_p)
         send_command(endingPoint, kp, ki, kd)
-
-        if EVAL_MODE == "TIME":
-            time.sleep(TIME_PERIOD)
-        elif EVAL_MODE == "DELTA":
-            wait_until_settled(endingPoint, delta, TIME_OUT)
-            with shared_lock:
-                err_acc = 0.0
-                counter = 0
-            time.sleep(DELTA_SAMPLE_TIME)
+        time.sleep(TIME_PERIOD)
 
         with shared_lock:
             Jp = err_acc / counter if counter else 0.0
             err_acc = 0.0
             counter = 0
 
-        # ====================== J- ======================
         phi_m = phi - sC * sDelta
         unpack_phi(phi_m)
         send_command(endingPoint, kp, ki, kd)
-
-        if EVAL_MODE == "TIME":
-            time.sleep(TIME_PERIOD)
-        elif EVAL_MODE == "DELTA":
-            wait_until_settled(endingPoint, delta, TIME_OUT)
-            with shared_lock:
-                err_acc = 0.0
-                counter = 0
-            time.sleep(DELTA_SAMPLE_TIME)
+        time.sleep(TIME_PERIOD)
 
         with shared_lock:
             Jm = err_acc / counter if counter else 0.0
             err_acc = 0.0
             counter = 0
 
-        # ====================== SPSA UPDATE ======================
         g_hat = ((Jp - Jm) / (2.0 * sC)) * sDelta
-        a_k = learning_rate / ((curr_iteration + 1 + sA) ** alpha)
+        grad_norm = np.linalg.norm(g_hat)
 
         cycle_error = 0.5 * (Jp + Jm)
-        weight = sigmoid(cycle_error)
-        a_eff = a_k * weight
+        prev_errors.append(cycle_error)
 
-        phi -= a_eff * g_hat
+        if grad_norm < GRAD_EPS:
+            print("Early stop: gradient norm too small (noise-dominated)")
+            break
+
+        a_k = learning_rate / ((curr_iteration + 1 + sA) ** alpha)
+
+        step = a_k * g_hat
+        step = np.clip(step, -MAX_STEP, MAX_STEP)
+
+        phi -= step
 
         if cycle_error < ACCEPTABLE_ERROR:
             sC *= 0.95
@@ -224,25 +220,36 @@ def tuner():
         unpack_phi(phi)
         send_command(startingPoint, kp, ki, kd)
 
+        if len(prev_errors) >= PATIENCE:
+            recent = prev_errors[-PATIENCE:]
+            if max(recent) - min(recent) < IMPROVEMENT_EPS:
+                print("Early stop: error plateau detected")
+                break
+
         errors.append(cycle_error)
+
         print(
-            f"[Cycle {cycle}] mode={EVAL_MODE} err={cycle_error:.6f} "
-            f"a_eff={a_eff:.6e} kp={kp:.4f} ki={ki:.4f} kd={kd:.4f}"
+            f"[Cycle {cycle}] err={cycle_error:.4f} "
+            f"|g|={grad_norm:.4e} "
+            f"kp={kp:.4f} ki={ki:.4f} kd={kd:.4f}"
         )
-        if (cycle_error < min_error_params[0]):
-            min_error_params[0] = cycle_error
-            min_error_params[1] = kp
-            min_error_params[2] = ki
-            min_error_params[3] = kd
+
+        if cycle_error < min_error_params[0]:
+            min_error_params[:] = [cycle_error, kp, ki, kd]
 
         cycle += 1
         curr_iteration += 1
         time.sleep(3.0)
 
     print("Tuning finished.")
-    print(f"Minimum params obtained from tune: minimum error - {min_error_params[0]}\nkp - {min_error_params[1]}\nki - {min_error_params[2]}\nkd - {min_error_params[3]}")
+    print(
+        f"Minimum params:\n"
+        f"error={min_error_params[0]:.4f}\n"
+        f"kp={min_error_params[1]:.4f}\n"
+        f"ki={min_error_params[2]:.4f}\n"
+        f"kd={min_error_params[3]:.4f}"
+    )
 
-threading.Thread(target=tuner, daemon=True).start()
 
 # =========================================================
 # ==================== PLOTTING ===========================
