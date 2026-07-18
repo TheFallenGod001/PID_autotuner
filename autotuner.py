@@ -149,7 +149,7 @@ def read_serial():
             continue
 
         parts = line.split(",")
-        if len(parts) == 2:
+        if len(parts) == 4:
             with shared_lock:
                 if (accumulate):
                     act_rpm = safe_float(parts[0])
@@ -323,10 +323,9 @@ def update(frame):
 
 ani = animation.FuncAnimation(
     fig,
-    update,          # <-- THIS is where update is “called”
+    update,     
     interval=50,     # ms between frames
     blit=True
 )
 
 plt.show()
-
