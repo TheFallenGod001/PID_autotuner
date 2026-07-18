@@ -49,7 +49,7 @@ Matches [BDC_Driver_NOVA](https://github.com/TheFallenGod001/BDC_Driver_NOVA)'s 
 0 <target_rpm> <kp> <ki> <kd>
 ```
 
-and reads back telemetry lines in `actual_rpm,expected_rpm` format.
+and reads back telemetry lines in `rightActualRpm,rightExpectedRpm,leftActualRpm,rightExpectedRpm` format
 
 ## Running
 
