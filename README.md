@@ -6,9 +6,9 @@ This is the tuning counterpart to [BDC_Driver_NOVA](../BDC_Driver_NOVA): it talk
 
 ## Why SPSA
 
-Naively tuning 3 gains (`kp`, `ki`, `kd`) via finite-difference gradient descent requires perturbing each parameter up and down independently — `2 × 3 = 6` real-world trials per gradient estimate. Each "trial" here means physically commanding the motor, waiting for it to respond, and measuring the result — slow, and impossible to parallelize on a single motor.
+Naively tuning 3 gains (`kp`, `ki`, `kd`) via finite-difference gradient descent requires perturbing each parameter up and down independently — `2 × 3 = 6` real-world trials per gradient estimate. Each "trial" here means physically commanding the motor, waiting for it to respond, and measuring the result, which takes alot of time and is impossible to parallelize.
 
-**SPSA needs only 2 trials per gradient estimate, regardless of how many parameters are being tuned.** It perturbs *all* parameters simultaneously in a random ±1 direction (`sDelta`), evaluates the cost at both perturbed points, and estimates the gradient from that single pair. This is the entire reason SPSA exists as an algorithm, and it's the right tool for exactly this kind of "each evaluation costs real time on real hardware" problem.
+**SPSA needs only 2 trials per gradient estimate, regardless of how many parameters are being tuned.** It perturbs *all* parameters simultaneously in a random ±1 direction (`sDelta`), evaluates the cost at both perturbed points, and estimates the gradient from that single pair.
 
 ## How it works
 
