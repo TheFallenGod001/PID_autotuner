@@ -1,6 +1,6 @@
 # PID_autotuner
 
-An automatic PID gain tuner for real motor hardware, using **SPSA (Simultaneous Perturbation Stochastic Approximation)** to find good gains through live experiments over a serial connection — no manual trial-and-error, no analytical plant model required.
+An automatic PID gain tuner for real motor hardware, using **SPSA (Simultaneous Perturbation Stochastic Approximation)** to find good gains through live experiments over a serial connection.
 
 This is the tuning counterpart to [BDC_Driver_NOVA](../BDC_Driver_NOVA): it talks to that firmware's serial protocol directly, sending RPM setpoints and gain updates and reading back live RPM telemetry to evaluate how good a given set of gains actually is on the real motor.
 
